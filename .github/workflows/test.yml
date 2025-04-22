@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: |
         0 0 * * *
+
 jobs:
   test:
     name: Redmine ${{ matrix.redmine-version }} & ${{ matrix.rdbms }} & Ruby ${{ matrix.ruby-version }}${{ matrix.with-wiki-extensions == 'yes' && ' & Wiki Extensions' || '' }}
