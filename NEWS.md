@@ -1,5 +1,23 @@
 # Redmine FullTextSearch
 
+## 2.0.3 - 2026-08-06
+
+### Improvements
+
+  * Supported Redmine 7.0.
+
+  * Added semantic search.
+
+    * This is an experimental feature.
+
+    * Semantic search requires PostgreSQL + PGroonga and a dedicated index created via `rake full_text_search:semantic:index:create`.
+
+### Fixed
+
+  * Fixed attachment search results to show the correct title.
+
+  * Fixed an error when removing a tag added by Wiki Extensions.
+
 ## 2.0.2 - 2025-09-29
 
 ### Improvements
