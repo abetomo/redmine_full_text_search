@@ -188,6 +188,15 @@ jobs:
           bin/rails db:migrate
           bin/rails redmine:load_default_data REDMINE_LANG=en
           bin/rails redmine:plugins:migrate
+      - name: Show partitioning status
+        run: |
+          cd ../redmine
+          RAILS_ENV=test bin/rails runner '
+            puts({
+              adapter: ActiveRecord::Base.connection.adapter_name,
+              partitioned: FullTextSearch::Partition.partitioned?,
+              available: FullTextSearch::Partition.available?,
+            })'
       - name: Test
         run: |
           cd ../redmine
