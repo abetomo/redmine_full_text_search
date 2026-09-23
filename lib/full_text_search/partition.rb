@@ -58,6 +58,15 @@ SELECT pgroonga_command('plugin_register', ARRAY['name', 'sharding']);
         @logical_select_features_are_supported
       end
 
+      def ensure_created(year)
+        ensure_created_internal(year)
+      rescue ActiveRecord::StatementInvalid => error
+        Rails.logger.warn("[full-text-search][partition][create] " +
+                          "failed to create #{partition_name(year)}: " +
+                          "#{error}")
+        false
+      end
+
       def requirements_message
         "partitioning requires " +
           "Groonga #{GROONGA_REQUIRED_VERSION} or later and " +
@@ -68,6 +77,63 @@ SELECT pgroonga_command('plugin_register', ARRAY['name', 'sharding']);
       def physical_table_names_available?
         connection.select_value(<<~SQL).present?
 SELECT to_regprocedure('pgroonga_physical_table_names(text, text)');
+        SQL
+      end
+
+      def partition_name(year)
+        "#{table_name}_#{year}"
+      end
+
+      def default_partition_name
+        "#{table_name}_default"
+      end
+
+      def ensured_years
+        @ensured_years ||= Concurrent::Set.new
+      end
+
+      def ensure_created_internal(year)
+        return false unless partitioned?
+        return :exist unless ensured_years.add?(year)
+        return :exist if connection.data_source_exists?(partition_name(year))
+        create(year)
+        :created
+      end
+
+      def create(year)
+        name = partition_name(year)
+        connection.transaction(requires_new: true) do
+          connection.execute(<<~SQL)
+CREATE TABLE #{name} (
+  LIKE #{table_name}
+    INCLUDING DEFAULTS
+    INCLUDING CONSTRAINTS
+);
+          SQL
+
+          # Move the records because having them in the default table causes an error.
+          move_default_records(year)
+
+          connection.execute(<<~SQL)
+ALTER TABLE #{table_name}
+ATTACH PARTITION #{name}
+FOR VALUES FROM ('#{year}-01-01') TO ('#{year + 1}-01-01');
+          SQL
+        end
+      end
+
+      def move_default_records(year)
+        condition = "registered_at >= '#{year}-01-01' AND " +
+                    "registered_at < '#{year + 1}-01-01'"
+        connection.execute(<<~SQL)
+INSERT INTO #{partition_name(year)}
+SELECT *
+  FROM #{default_partition_name}
+ WHERE #{condition};
+        SQL
+        connection.execute(<<~SQL)
+DELETE FROM #{default_partition_name}
+ WHERE #{condition};
         SQL
       end
 
