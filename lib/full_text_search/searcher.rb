@@ -8,6 +8,7 @@ module FullTextSearch
 
     def search
       arguments = {
+        "command_version" => "3",
         "match_columns" => match_columns.join(" || "),
         "query" => query,
         "query_flags" => "ALLOW_COLUMN|ALLOW_LEADING_NOT|QUERY_NO_SYNTAX_ERROR",
